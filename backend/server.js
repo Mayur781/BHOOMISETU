@@ -9,9 +9,23 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Build allowed origins list from env + defaults
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173'
+];
+
+// Add production CORS_ORIGIN if set (comma-separated for multiple)
+if (process.env.CORS_ORIGIN) {
+  process.env.CORS_ORIGIN.split(',').forEach(origin => {
+    allowedOrigins.push(origin.trim());
+  });
+}
+
 // Enable CORS for frontend
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+  origin: allowedOrigins,
   credentials: true
 }));
 
@@ -48,11 +62,19 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Bootstrap server after connecting database
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🇮🇳 BhoomiSetu Backend Server running on http://localhost:${PORT}`);
-    console.log(`📡 Health Check: http://localhost:${PORT}/api/v1/health`);
-    console.log(`👥 Demo Users API: http://localhost:${PORT}/api/v1/auth/demo-users`);
+// Start server only when NOT running on Vercel (Vercel uses the exported app)
+if (!process.env.VERCEL) {
+  connectDB().then(() => {
+    app.listen(PORT, () => {
+      console.log(`🇮🇳 BhoomiSetu Backend Server running on http://localhost:${PORT}`);
+      console.log(`📡 Health Check: http://localhost:${PORT}/api/v1/health`);
+      console.log(`👥 Demo Users API: http://localhost:${PORT}/api/v1/auth/demo-users`);
+    });
   });
-});
+} else {
+  // On Vercel, connect DB without starting a listener
+  connectDB();
+}
+
+// Export for Vercel serverless
+module.exports = app;
